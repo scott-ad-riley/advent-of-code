@@ -17,16 +17,17 @@ fn main() {
 }
 
 struct ParsedInputRow<'a> {
-    min: u8,
-    max: u8,
-    char: &'a str,
+    min: usize,
+    max: usize,
+    char: char,
     password: &'a str,
 }
 
 impl<'a> ParsedInputRow<'a> {
     pub fn is_valid(&self) -> bool {
-        let character_count = self.password.matches(self.char).count();
-        return character_count >= self.min.into() && character_count <= self.max.into();
+        let first_character_matches = self.password.as_bytes()[self.min - 1] as char == self.char;
+        let second_character_matches = self.password.as_bytes()[self.max - 1] as char == self.char;
+        return first_character_matches ^ second_character_matches;
     }
 }
 
@@ -36,7 +37,7 @@ fn parse_row(raw: &str) -> Option<ParsedInputRow> {
     let mut captures = regex.captures_iter(raw).map(|x| ParsedInputRow {
         min: x.get(1).unwrap().as_str().parse().unwrap(),
         max: x.get(2).unwrap().as_str().parse().unwrap(),
-        char: x.get(3).unwrap().as_str(),
+        char: x.get(3).unwrap().as_str().chars().nth(0).unwrap(),
         password: x.get(4).unwrap().as_str(),
     });
 
