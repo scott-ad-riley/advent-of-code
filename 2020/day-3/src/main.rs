@@ -3,9 +3,6 @@ use std::fs;
 fn main() {
     let filename = "input.txt";
     let contents = fs::read_to_string(filename).expect("Something went wrong reading the file");
-    /*
-      let rows
-    */
 
     let trees: Vec<Vec<bool>> = contents
         .split("\n")
@@ -15,18 +12,26 @@ fn main() {
         .collect();
 
     let stop_at = trees.len();
-    let mut depth = 0;
-    let mut tree_count = 0;
+    let mut tree_counts: Vec<usize> = Vec::new();
     let forest = Forest::new(trees);
 
-    while depth < stop_at {
-        if forest.has_tree(depth * 3, depth) {
-            tree_count += 1;
+    let steps = [(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)];
+
+    for step in steps.iter() {
+        let mut depth = 0;
+        let mut tree_count = 0;
+
+        while depth < stop_at {
+            if forest.has_tree(depth * step.0, depth * step.1) {
+                tree_count += 1;
+            }
+            depth += 1;
         }
-        depth += 1;
+
+        tree_counts.push(tree_count)
     }
 
-    println!("{:?}", tree_count)
+    println!("{:?}", tree_counts)
 }
 
 #[derive(Debug)]
@@ -44,7 +49,7 @@ impl Forest {
     pub fn has_tree(&self, horizontal: usize, depth: usize) -> bool {
         let row = self.trees.iter().nth(depth);
         if row.is_none() {
-            panic!("went past the last row")
+            return false;
         }
         let tree = row.unwrap().iter().nth(horizontal);
         match tree {
