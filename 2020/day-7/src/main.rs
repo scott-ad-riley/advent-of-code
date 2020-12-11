@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 
 type Color = String;
+type Contains = HashMap<Color, Vec<Contained>>;
 type ContainedIn = HashMap<Color, HashSet<Color>>;
 
 #[derive(Debug)]
@@ -21,41 +22,39 @@ fn main() {
     let contents = fs::read_to_string(filename).expect("Something went wrong reading the file");
 
     // this is a map of Color -> Contained where the key is the container, and the value is a Vec of what's contained inside it
-    let mut bags: HashMap<String, Vec<Contained>> = HashMap::new();
+    let mut bags: Contains = HashMap::new();
 
     // this is a map of Color -> Set<Color> where the key is a child bag, and the value is a Set of of which bags contain it
-    let mut inverted_bags: HashMap<Color, HashSet<Color>> = HashMap::new();
+    let mut inverted_bags: ContainedIn = HashMap::new();
 
-    contents
-        .split("\n")
-        .filter(|x| x.len() > 3)
-        .map(|row| {
-            let mut items = row.split("contain");
-            let bag_type = extract_bag_type(items.next().unwrap());
-            let contents: Vec<Contained> = extract_contents(items.next().unwrap());
-            bags.insert(bag_type.clone().to_string(), contents);
+    for line in contents.trim_end().split("\n") {
+        let mut items = line.split("contain");
+        let bag_type = extract_bag_type(items.next().unwrap());
+        let contents: Vec<Contained> = extract_contents(items.next().unwrap());
+        bags.insert(bag_type.clone().to_string(), contents);
+    }
 
-            bag_type
-        })
-        .collect_vec();
-
-    for (bag, outer_contents) in bags {
+    for (bag, outer_contents) in bags.iter() {
         for contents in outer_contents {
             let entry = inverted_bags
-                .entry(contents.color)
+                .entry(contents.color.to_string())
                 .or_insert(HashSet::new());
             entry.insert(bag.to_string());
         }
     }
 
-    let part1_answer = transitive_closure(inverted_bags, &"shiny gold".to_string()).len();
+    // let part1_answer = transitive_closure(&inverted_bags, &"shiny gold".to_string()).len();
 
-    println!("{:?}", part1_answer);
+    // println!("{:?}", part1_answer);
+
+    let part2_answer = walk_graph_for_contained_bag_count(&bags);
+
+    println!("{:?}", part2_answer);
 }
 
-fn transitive_closure(inverted_bags: ContainedIn, start: &Color) -> HashSet<Color> {
+fn transitive_closure(inverted_bags: &ContainedIn, start: &Color) -> HashSet<Color> {
     let mut valid_containers = HashSet::new();
-    calculate_transitive_closure_step(&inverted_bags, &mut valid_containers, vec![start]);
+    calculate_transitive_closure_step(inverted_bags, &mut valid_containers, vec![start]);
 
     valid_containers.remove(start);
     valid_containers
@@ -80,6 +79,33 @@ fn calculate_transitive_closure_step(
             }
         }
     }
+}
+
+fn walk_graph_for_contained_bag_count(bags: &Contains) -> usize {
+    let mut stack = bags
+        .get("shiny gold")
+        .unwrap()
+        .iter()
+        .flat_map(|bag| to_n_strings(bag))
+        .collect_vec();
+
+    let mut count: usize = 0;
+
+    while let Some(color) = stack.pop() {
+        count += 1;
+
+        if let Some(all_contained) = bags.get(&color) {
+            for contained in all_contained {
+                stack.append(&mut to_n_strings(&contained))
+            }
+        }
+    }
+
+    count
+}
+
+fn to_n_strings(bag: &Contained) -> Vec<Color> {
+    vec![bag.color.to_string(); bag.count]
 }
 
 fn extract_bag_type(item: &str) -> String {
