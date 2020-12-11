@@ -7,13 +7,23 @@ use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 
+type Color = String;
+
+struct Contained {
+    count: usize,
+    name: Color,
+}
+
 fn main() {
     let filename = "input.txt";
     let contents = fs::read_to_string(filename).expect("Something went wrong reading the file");
 
-    // loop through the file, produce a hashmap of bag_type: Vec<(usize,child_bag_type)>
-
+    // this is a map of Color -> Color that bag contains
     let mut bags: HashMap<String, Vec<(usize, &str)>> = HashMap::new();
+
+    // this is a map of Color -> Color that contains that bag
+    let mut inverted_bags: HashMap<Color, Vec<Color>> = HashMap::new();
+
     contents
         .split("\n")
         .filter(|x| x.len() > 3)
@@ -27,9 +37,13 @@ fn main() {
         })
         .collect_vec();
 
-    let count = get_container_bags(vec!["shiny gold".to_string()], &bags, &mut HashSet::new());
+    println!("{:?}", bags);
 
-    println!("{:?}", count);
+    let mut counter = 0;
+
+    get_contained_bag_count("shiny gold".to_string(), &bags, &mut counter);
+
+    println!("{:?}", counter);
 }
 
 fn extract_bag_type(item: &str) -> String {
@@ -58,32 +72,37 @@ fn extract_contents(item: &str) -> Vec<(usize, &str)> {
         .collect()
 }
 
-fn get_container_bags(
-    target_bags: Vec<String>,
+fn get_contained_bag_count(
+    target_bag: String,
     bag_type_to_contents_map: &HashMap<String, Vec<(usize, &str)>>,
-    acc: &mut HashSet<String>,
+    acc: &mut usize,
 ) -> usize {
-    let bags_containing_target_bags: Vec<(&String, &Vec<(usize, &str)>)> = bag_type_to_contents_map
-        .iter()
-        .filter(|(_, contents)| {
-            contents.iter().any(|(_count, each_bag_type)| {
-                target_bags
-                    .iter()
-                    .any(|target_bag| target_bag == each_bag_type)
-            })
-        })
-        .collect();
+    let bags_inside_target = bag_type_to_contents_map.get(&target_bag).unwrap();
 
-    if bags_containing_target_bags.len() == 0 {
-        return acc.len();
+    if bags_inside_target.len() == 0 {
+        println!("{:?} contains no bags (current acc:{:?})", target_bag, acc);
+        return 1;
     }
 
-    let next_bags: Vec<String> = bags_containing_target_bags
+    bags_inside_target
         .iter()
-        .map(|(a, _)| (*a).clone())
-        .collect();
-    next_bags.iter().for_each(|x| {
-        acc.insert(x.to_string());
-    });
-    return get_container_bags(next_bags, bag_type_to_contents_map, acc);
+        .map(|&(inner_bag_count, inner_bag_type)| {
+            let count = inner_bag_count
+                * get_contained_bag_count(
+                    inner_bag_type.to_string(),
+                    bag_type_to_contents_map,
+                    acc,
+                );
+
+            *acc += count;
+
+            println!(
+                "{:?} contains {:?}x{:?} bags (current total:{:?} just added:{:?})",
+                target_bag, inner_bag_count, inner_bag_type, acc, count
+            );
+
+            count
+        })
+        .inspect(|x| println!("summing: {:?}", x))
+        .sum()
 }
