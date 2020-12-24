@@ -99,10 +99,7 @@ impl SeatingState {
 
     fn count_occupied(&self) -> usize {
         self.rows.iter().fold(0, |acc, row| {
-            acc + row
-                .iter()
-                .filter(|x| if let Seat::Occupied = x { true } else { false })
-                .count()
+            acc + row.iter().filter(|x| matches!(x, Seat::Occupied)).count()
         })
     }
 }
