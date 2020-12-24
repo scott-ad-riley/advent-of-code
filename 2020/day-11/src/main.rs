@@ -78,17 +78,48 @@ impl SeatingState {
     }
 
     fn determine_next(&self, x: usize, y: usize) -> Seat {
-        let adjacents = adjacents_and_diagonals(x, y);
         let current = &self.rows[y][x];
         let mut occupied_count: usize = 0;
 
-        for (adj_x, adj_y) in adjacents {
-            if let Some(Seat::Occupied) = self.rows.get(adj_y).and_then(|row| row.get(adj_x)) {
-                occupied_count += 1;
+        for (step_x, step_y) in relevant_seat_steps() {
+            let mut step_count = 1;
+
+            let mut found_seat = false;
+
+            while !found_seat {
+                let new_x: isize = x as isize + (step_x * step_count);
+                let new_y: isize = y as isize + (step_y * step_count);
+
+                let outside_bounds = new_x < 0 || new_y < 0;
+                if outside_bounds {
+                    found_seat = true;
+                } else {
+                    // isize -> usize is the potentially lossy one but we're safe becase we know
+                    // that new_y and new_x are both zero or above (i.e. safe to convert to usize)
+                    let target_seat = self
+                        .rows
+                        .get(new_y as usize)
+                        .and_then(|row| row.get(new_x as usize));
+
+                    if target_seat.is_none() {
+                        found_seat = true
+                    } else {
+                        match target_seat.unwrap() {
+                            Seat::Floor => {}
+                            Seat::Occupied => {
+                                occupied_count += 1;
+                                found_seat = true
+                            }
+                            Seat::Empty => found_seat = true,
+                        }
+                    }
+                }
+
+                step_count += 1;
             }
         }
 
-        match (current, occupied_count >= 4, occupied_count == 0) {
+        match (current, occupied_count >= 5, occupied_count == 0) {
             (Seat::Floor, _, _) => Seat::Floor,
             (Seat::Occupied, true, _) => Seat::Empty,
             (Seat::Occupied, false, _) => Seat::Occupied,
@@ -102,6 +133,19 @@ impl SeatingState {
             acc + row.iter().filter(|x| matches!(x, Seat::Occupied)).count()
         })
     }
+}
+
+fn relevant_seat_steps() -> Vec<(isize, isize)> {
+    vec![
+        (-1, 0),  // left
+        (1, 0),   // right
+        (0, -1),  // above
+        (0, 1),   // below
+        (-1, -1), // top left
+        (1, -1),  // top right
+        (-1, 1),  // bottom left
+        (1, 1),   // bottom right
+    ]
 }
 
 fn adjacents_and_diagonals(x: usize, y: usize) -> Vec<(usize, usize)> {
