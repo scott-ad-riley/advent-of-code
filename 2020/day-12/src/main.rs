@@ -16,12 +16,12 @@ fn run(filename: &str) {
     let mut position = ShipPosition {
         x: 0,
         y: 0,
-        direction: 90,
+        waypoint_x: 10,
+        waypoint_y: -1,
     };
 
     for instruction in instructions.iter() {
         position.update(instruction);
-        println!("now at {:?}", position);
     }
 
     println!("{:?}", position);
@@ -60,47 +60,60 @@ impl Instruction {
 struct ShipPosition {
     x: isize,
     y: isize,
-    direction: isize,
+    waypoint_x: isize,
+    waypoint_y: isize,
 }
 
 impl ShipPosition {
     fn update(&mut self, instruction: &Instruction) {
         match instruction {
             Instruction::Forward(value) => {
-                let (new_x, new_y) = move_x_y(self.direction, *value, (self.x, self.y));
-                println!("moved by {} in direction {}", value, self.direction);
-                self.x = new_x;
-                self.y = new_y;
+                self.x += self.waypoint_x * value;
+                self.y += self.waypoint_y * value;
             }
             Instruction::Left(value) => {
-                self.direction = (self.direction - *value as isize) % 360;
+                let (new_x, new_y) = rotate_clockwise(value, self.waypoint_x, self.waypoint_y);
+                self.waypoint_x = new_x;
+                self.waypoint_y = new_y;
             }
             Instruction::Right(value) => {
-                self.direction = (self.direction + *value as isize) % 360;
+                let (new_x, new_y) =
+                    rotate_counterclockwise(value, self.waypoint_x, self.waypoint_y);
+                self.waypoint_x = new_x;
+                self.waypoint_y = new_y;
             }
             Instruction::North(value) => {
-                self.y -= value;
+                self.waypoint_y -= value;
             }
             Instruction::South(value) => {
-                self.y += value;
+                self.waypoint_y += value;
             }
             Instruction::East(value) => {
-                self.x += value;
+                self.waypoint_x += value;
             }
             Instruction::West(value) => {
-                self.x -= value;
+                self.waypoint_x -= value;
             }
         }
     }
 }
 
-fn move_x_y(direction: isize, value: isize, current: (isize, isize)) -> (isize, isize) {
-    let (x, y) = current;
-    match direction {
-        -90 | 270 => (x - value, y),
-        90 | -270 => (x + value, y),
-        180 | -180 => (x, y + value),
-        0 => (x, y - value),
+fn rotate_clockwise(amount: &isize, x: isize, y: isize) -> (isize, isize) {
+    match amount {
+        270 => (-y, x),
+        90 => (y, -x),
+        180 => (-x, -y),
+        0 => (x, y),
+        _ => panic!("unrecognised direction"),
+    }
+}
+
+fn rotate_counterclockwise(amount: &isize, x: isize, y: isize) -> (isize, isize) {
+    match amount {
+        270 => (y, -x),
+        90 => (-y, x),
+        180 => (-x, -y),
+        0 => (x, y),
         _ => panic!("unrecognised direction"),
     }
 }
